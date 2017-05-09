@@ -1,0 +1,18 @@
+@import 'variable.less';
+//已经把根节点的fontSize设置成了屏幕宽度的 1/10，所以可以用一下函数将px换算成rem
+.fs(@px){
+    font-size:unit(@px / 37.5,rem);
+}
+.w(@px){
+    width:unit(@px / 37.5,rem);
+}
+
+.h(@px){
+    height:unit(@px / 37.5,rem);
+}
+.h(@px){
+    line-height: unit(@px/37.5,rem);
+}
+body{
+    .fs(16)
+}
