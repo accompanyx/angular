@@ -1,0 +1,16 @@
+<div class="login-page">
+    <form name="form">
+        <div class="login-reg-box">
+            <div class="row">
+                <input ng-model="user.phone" name="phone" required-error-message="用户名必填" validator="required,phone" type="text" placeholder="已验证手机/邮箱">
+            </div>
+            <div class="row">
+                <input ng-model="user.password" required-error-message="密码必填" name="password" validator="required,password" placeholder="密码" type="text">
+            </div>
+        </div>
+        <button class="loginBtn" validation-submit="form" ng-click="submit()">登录</button>
+
+        <div class="msg">还没账号</div>
+        <div class="regBtn">注册</div>
+    </form>
+</div>

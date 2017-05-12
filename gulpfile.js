@@ -8,7 +8,6 @@ var open = require('open');
 var gulpless = require('gulp-less');
 //css压缩
 var cssmin = require('gulp-cssmin');
-
 //用来定义目录路径
 var app = {
     srcPath:'src/',//源码路径
