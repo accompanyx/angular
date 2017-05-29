@@ -8,7 +8,7 @@ angular.module('app').directive('appFooter',[function(){
 
         },
         controller:['$scope',function($scope){
-            $scope.isLogin = false;
+            $scope.isLogin = localStorage.getItem('userId');
         }]
     }
 }])

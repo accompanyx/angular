@@ -1,6 +1,8 @@
+//validation框架出错，1，加入如下代码。2，需要同时引入 validation-rule模块
 angular.module('app').config(['$qProvider', function ($qProvider) {
     $qProvider.errorOnUnhandledRejections(false);
 }]);
+
 angular.module('app').config(['$validationProvider',function($validationProvider){
     //配置校验规则
     var expression = {

@@ -1,4 +1,4 @@
-angular.module('app',['ui.router','validation','validation.rule']);
+angular.module('app',['ui.router','validation','validation.rule','ngAnimate']);
 
 
 angular.module('app').config(['$stateProvider','$urlRouterProvider',function($stateProvider,$urlRouterProvider){
@@ -50,9 +50,11 @@ angular.module('app').config(['$stateProvider','$urlRouterProvider',function($st
     $urlRouterProvider.otherwise('main');
 }])
 
+//validation框架出错，1，加入如下代码。2，需要同时引入 validation-rule模块
 angular.module('app').config(['$qProvider', function ($qProvider) {
     $qProvider.errorOnUnhandledRejections(false);
 }]);
+
 angular.module('app').config(['$validationProvider',function($validationProvider){
     //配置校验规则
     var expression = {
@@ -76,27 +78,132 @@ angular.module('app').config(['$validationProvider',function($validationProvider
     $validationProvider.setExpression(expression).setDefaultMsg(defaultMsg);
 }])
 
-angular.module('app').filter('jobFilter',function(){
-    // options {city:'北京',key:'阿里巴巴'}
-    return function(data, options) {
-        var jobList = [];
-        for(var i=0;i<data.length;i++){
-            //当前的职位数据
-            var item = data[i];
-            var flag = new RegExp(options.keywords).test(item.companyName) || new RegExp(options.keywords).test(item.job);
-            if(!options.city){//如果城市没选，那么看公司和职位
-                if(flag){
-                    jobList.push(item);
-                }
-            }else{
-                if(flag && item.cityName==options.city){
-                    jobList.push(item);
-                }
-            }
+angular.module('app').controller('companyDetailCtrl',['$scope','$state','companyService',function($scope,$state,companyService){
+    var cid = $state.params.cid;
+    companyService.findById(cid).then(function(data){
+        $scope.company = data;
+        $scope.nowIndex = 0;
+
+        $scope.changeList = function(index){
+            $scope.jobList = data.positionClass[index].positionList;
+            $scope.nowIndex = index;
         }
-        return jobList;
+        $scope.changeList(0);
+        console.log($scope.company,888);
+    })
+}])
+
+
+angular.module('app').controller('diliveredCtrl',['$scope','dileveredService',function($scope,dileveredService){
+    dileveredService.all().then(function(data){
+        $scope.positionList = data;
+    })
+}])
+
+
+angular.module('app').controller('loginCtrl',['$scope','$state',function($scope,$state){
+    $scope.submit = function(){
+        //假设用户输入了正确的用户名密码
+        localStorage.setItem('userId',1);
+        $state.go('myInfo');
     }
-})
+}])
+
+
+angular.module('app').controller('mainCtrl',['$scope','positionService',function($scope,positionService){
+    positionService.all().then(function(data){
+        $scope.positionList = data;
+    })
+}])
+
+
+angular.module('app').controller('myCtrl',['$scope',function($scope){
+
+}])
+
+
+angular.module('app').controller('myInfoCtrl',['$scope','$state',function($scope,$state){
+    $scope.logout = function(){
+        localStorage.removeItem('userId');
+        $state.go('my');
+    }
+}])
+
+angular.module('app').controller('positionDetailCtrl',['$scope','$state','positionService','companyService',function($scope,$state,positionService,companyService){
+    var id = $state.params.id;
+    var promise = positionService.findById(id);
+    promise.then(function(data){
+        $scope.job = data;
+        companyService.findById(data.companyId).then(function(data){
+            $scope.company = data;
+            console.log($scope.company,888);
+        })
+
+    })
+
+}])
+
+angular.module('app').controller('searchCtrl',['$filter','keywordsService','$scope','positionService','cityService',function($filter,keywordsService,$scope,positionService,cityService){
+    //获取本地存储的关键字
+    $scope.keywordsList = JSON.parse(localStorage.getItem('keywordsList'));
+
+    $scope.showCitys = function(){
+        $scope.isCitysShow = true;
+        $scope.isLeftShow = false;
+    }
+    $scope.$on('closeCitys',function(event,res){
+        $scope.isLeftShow = false;
+        $scope.isCitysShow = false;
+    })
+    positionService.all().then(function(data){
+        // $scope.positionList = data;
+        //
+    })
+    $scope.$on('sendCityId',function(event,res){
+        var cityId = res.id;
+        $scope.nowId = cityId;
+        $scope.isLeftShow = false;
+        $scope.isCitysShow = false;
+        cityService.findById(cityId).then(function(data){
+            //$scope.city是搜索条件之一
+            $scope.city = data.name;
+            $scope.search();
+        })
+    });
+    $scope.search = function(){
+        if(!$scope.keywords) return ;
+        var options = {city:$scope.city,keywords:$scope.keywords};
+        positionService.all().then(function(data){
+            var data = $filter('jobFilter')(data,options);
+            $scope.positionList = data;
+            if(data.length==0){
+                $scope.keywords = '';
+            }else{
+                var keywordsList = keywordsService.get('keywordsList');
+                if(!(keywordsList.indexOf($scope.keywords)>-1)){
+                    keywordsList.push($scope.keywords);
+                }
+                $scope.keywordsList = keywordsList;
+                keywordsService.set('keywordsList',keywordsList);
+            }
+            console.log(data,'filter');
+        })
+
+
+    }
+
+    //接收keywords组件的发射的removeKeywords事件
+    $scope.$on('removeKeywords',function(event,data){
+        $scope.keywordsList.splice(data.index,1);
+        keywordsService.set('keywordsList',$scope.keywordsList);
+    })
+
+    //点击横条 回到原始查找
+    $scope.$on('oldSearch',function(event,keywords){
+        $scope.keywords = keywords;
+        $scope.search();
+    })
+}])
 
 
 angular.module('app').directive('appCitys',[function(){
@@ -141,7 +248,7 @@ angular.module('app').directive('appFooter',[function(){
 
         },
         controller:['$scope',function($scope){
-            $scope.isLogin = false;
+            $scope.isLogin = localStorage.getItem('userId');
         }]
     }
 }])
@@ -232,127 +339,27 @@ angular.module('app').directive('yuKeywords',[function(){
     }
 }])
 
-angular.module('app').controller('companyDetailCtrl',['$scope','$state','companyService',function($scope,$state,companyService){
-    var cid = $state.params.cid;
-    companyService.findById(cid).then(function(data){
-        $scope.company = data;
-        $scope.nowIndex = 0;
-
-        $scope.changeList = function(index){
-            $scope.jobList = data.positionClass[index].positionList;
-            $scope.nowIndex = index;
-        }
-        $scope.changeList(0);
-        console.log($scope.company,888);
-    })
-}])
-
-
-angular.module('app').controller('diliveredCtrl',['$scope','dileveredService',function($scope,dileveredService){
-    dileveredService.all().then(function(data){
-        $scope.positionList = data;
-    })
-}])
-
-
-angular.module('app').controller('loginCtrl',['$scope',function($scope){
-    $scope.submit = function(){
-        console.log($scope.user);
-    }
-}])
-
-
-angular.module('app').controller('mainCtrl',['$scope','positionService',function($scope,positionService){
-    positionService.all().then(function(data){
-        $scope.positionList = data;
-    })
-}])
-
-
-angular.module('app').controller('myCtrl',['$scope',function($scope){
-
-}])
-
-
-angular.module('app').controller('myInfoCtrl',['$scope',function($scope){
-
-}])
-
-angular.module('app').controller('positionDetailCtrl',['$scope','$state','positionService','companyService',function($scope,$state,positionService,companyService){
-    var id = $state.params.id;
-    var promise = positionService.findById(id);
-    promise.then(function(data){
-        $scope.job = data;
-        companyService.findById(data.companyId).then(function(data){
-            $scope.company = data;
-            console.log($scope.company,888);
-        })
-
-    })
-
-}])
-
-angular.module('app').controller('searchCtrl',['$filter','keywordsService','$scope','positionService','cityService',function($filter,keywordsService,$scope,positionService,cityService){
-    //获取本地存储的关键字
-    $scope.keywordsList = JSON.parse(localStorage.getItem('keywordsList'));
-
-    $scope.showCitys = function(){
-        $scope.isCitysShow = true;
-        $scope.isLeftShow = false;
-    }
-    $scope.$on('closeCitys',function(event,res){
-        $scope.isLeftShow = false;
-        $scope.isCitysShow = false;
-    })
-    positionService.all().then(function(data){
-        // $scope.positionList = data;
-        //
-    })
-    $scope.$on('sendCityId',function(event,res){
-        var cityId = res.id;
-        $scope.nowId = cityId;
-        $scope.isLeftShow = false;
-        $scope.isCitysShow = false;
-        cityService.findById(cityId).then(function(data){
-            //$scope.city是搜索条件之一
-            $scope.city = data.name;
-            $scope.search();
-        })
-    });
-    $scope.search = function(){
-        if(!$scope.keywords) return ;
-        var options = {city:$scope.city,keywords:$scope.keywords};
-        positionService.all().then(function(data){
-            var data = $filter('jobFilter')(data,options);
-            $scope.positionList = data;
-            if(data.length==0){
-                $scope.keywords = '';
-            }else{
-                var keywordsList = keywordsService.get('keywordsList');
-                if(!(keywordsList.indexOf($scope.keywords)>-1)){
-                    keywordsList.push($scope.keywords);
+angular.module('app').filter('jobFilter',function(){
+    // options {city:'北京',key:'阿里巴巴'}
+    return function(data, options) {
+        var jobList = [];
+        for(var i=0;i<data.length;i++){
+            //当前的职位数据
+            var item = data[i];
+            var flag = new RegExp(options.keywords).test(item.companyName) || new RegExp(options.keywords).test(item.job);
+            if(!options.city){//如果城市没选，那么看公司和职位
+                if(flag){
+                    jobList.push(item);
                 }
-                $scope.keywordsList = keywordsList;
-                keywordsService.set('keywordsList',keywordsList);
+            }else{
+                if(flag && item.cityName==options.city){
+                    jobList.push(item);
+                }
             }
-            console.log(data,'filter');
-        })
-
-
+        }
+        return jobList;
     }
-
-    //接收keywords组件的发射的removeKeywords事件
-    $scope.$on('removeKeywords',function(event,data){
-        $scope.keywordsList.splice(data.index,1);
-        keywordsService.set('keywordsList',$scope.keywordsList);
-    })
-
-    //点击横条 回到原始查找
-    $scope.$on('oldSearch',function(event,keywords){
-        $scope.keywords = keywords;
-        $scope.search();
-    })
-}])
+})
 
 angular.module('app').service('cityService',['$http',function($http){
     this.all = function(){
